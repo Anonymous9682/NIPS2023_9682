@@ -11,12 +11,13 @@ import argparse
 import copy
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.metrics import accuracy_score, roc_auc_score
-
+import optuna
+from optuna.visualization import *
 def parse_args(script):
     parser = argparse.ArgumentParser(description= 'few-shot script %s' %(script))
     parser.add_argument('--seed', default=53, help='Seed for Numpy and pyTorch. Default: 0 (None)', type=int)
     # parser.add_argument('--dataset', default='MedMNIST', help='MedMNIST/MNIST')
-    parser.add_argument('--method', default='MTMK L1', help='MTMK mix/MTMK L1/MTMK L2/LR/SVM/STMK/STSK')
+    parser.add_argument('--method', default='MTMK L1', help='MTMK mix/MTMK L1/MTMK L2/LR/SVM/STMK/STSK/MTSK')
     parser.add_argument('--imagefile', default='./organcmnist.npz', help='file link of selected dataset')
     parser.add_argument('--textfile', default='./phecode_final.tsv', help='file link of selected dataset')
     parser.add_argument('--savedir', default='./models', help='dir for saved models')
@@ -67,9 +68,8 @@ if __name__ == '__main__':
     # get image data and labels
     MT_training_Data = []
     MT_training_Label = []
-    # skip 1, 4, 7, 9
-    CLASS_LIST = [0, 2, 3, 5, 6, 8, 10]
-    
+    # skip 1, 4, 7, 9, 10
+    CLASS_LIST = [0, 2, 3, 5, 6, 8]
     TASK_NUM = len(CLASS_LIST)
     for i in CLASS_LIST:
         # positive images
@@ -89,10 +89,11 @@ if __name__ == '__main__':
 
         label = np.array([1] * SAMPLES + [-1] * SAMPLES, dtype=int)
         # shuffle label and train
-        index = [i for i in range(2*SAMPLES)]
-        random.shuffle(index)
-        train_t = np.array(train_t)[index]
-        label = label[index]
+        # index = [i for i in range(2*SAMPLES)]
+        # random.shuffle(index)
+        # train_t = np.array(train_t)[index]
+        # label = label[index]
+        train_t = np.array(train_t)
     
         # preprocess by dividing 255.
         MT_training_Data.append((data['train_images'][train_t] / 255.0).reshape((2 * SAMPLES, 28 * 28)))
@@ -106,8 +107,8 @@ if __name__ == '__main__':
     phecode = pd.read_csv(params.textfile, sep='\t')
     TEXT_NUM = params.texts
     # CLASS_LIST and CATEGORY_LIST is one to one
-    CLASS_LIST = [0, 2, 3, 5, 6, 8, 10]
-    CATEOGRY_LIST = ['bladder', 'femur', 'heart', 'kidney', 'liver', 'lung', 'spleen']
+    CLASS_LIST = [0, 2, 3, 5, 6, 8]
+    CATEOGRY_LIST = ['bladder', 'femur', 'heart', 'kidney', 'liver', 'lung']
     TASK_NUM = len(CLASS_LIST)
     
     # We select TEXT_NUM postive samples from each category
@@ -188,8 +189,8 @@ if __name__ == '__main__':
     # now we get train_set, test_set, train_label, test_label
     
     # only MTMK is implemented now
-    if params.method in ['MTMK mix', 'MTMK L1', 'MTMK L2']:
-        from mt_model_gpu_grad import MtModel
+    if params.method in ['MTMK mix', 'MTMK L1', 'MTMK L2','MTSK','STMK','STSK']:
+        from mt_model_gpu_grad import MtModel, SingleModel
         from kernels_gpu_grad import *
 
         gamma_list = [10 ** i for i in range(-3, 3)]
@@ -197,7 +198,11 @@ if __name__ == '__main__':
         kernel_list.extend([Gaussian_kernel(gamma) for gamma in gamma_list])
         kernel_list.extend([linear(), poly_kernel(2), poly_kernel(3), poly_kernel(4), poly_kernel(5)])
         kernel_list.extend([poly_kernel(i) for i in range(6, 11)])
-        
+    
+    if params.method in ['SVM', 'LR']:
+        from sklearn.svm import SVC
+        from sklearn.linear_model import LogisticRegression
+
     train_total = np.zeros((params.folds, TASK_NUM),dtype=float)
     train_text = np.zeros((params.folds, TASK_NUM),dtype=float)
     train_image = np.zeros((params.folds, TASK_NUM),dtype=float)
@@ -213,7 +218,7 @@ if __name__ == '__main__':
         train_x = train_set[k]
         train_y = train_label[k]
         test_x = test_set[k]
-        test_y = test_label[k]
+        test_y = test_label[k] 
 
         if params.method == 'MTMK L1':
             model = MtModel(kernel_list, lambda_2=params.lmd2, lambda_3=0., h=1e-6, epsilon=1e-3, k_0=1, sigma=0.1, delta=0.5, device=params.device)
@@ -221,8 +226,18 @@ if __name__ == '__main__':
             model = MtModel(kernel_list, lambda_2=params.lmd2, lambda_3=params.lmd3, h=1e-6, epsilon=1e-3, k_0=1, sigma=0.1, delta=0.5, device=params.device)
         if params.method == 'MTMK L2':
             model = MtModel(kernel_list, lambda_2=0., lambda_3=params.lmd3, h=1e-6, epsilon=1e-3, k_0=1, sigma=0.1, delta=0.5, device=params.device)
-            
-        if params.method in ['MTMK mix', 'MTMK L1', 'MTMK L2']:
+        if params.method == 'MTSK':
+            model = MtModel([linear()], lambda_2=0., lambda_3=params.lmd3, h=1e-6, epsilon=1e-3, k_0=1, sigma=0.1, delta=0.5, device=params.device)
+        if params.method == 'STMK':
+            model = SingleModel(kernel_list, lambda_2=params.lmd2, lambda_3=params.lmd3, h=1e-6, epsilon=1e-3, k_0=1, sigma=0.1, delta=0.5, device=params.device)
+        if params.method == 'STSK':
+            model = SingleModel([linear()], lambda_2=0., lambda_3=params.lmd3, h=1e-6, epsilon=1e-3, k_0=1, sigma=0.1, delta=0.5, device=params.device)
+        if params.method == 'SVM':
+            model = SVC(C=1.0, kernel='rbf', degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=True, tol=0.001, cache_size=200, class_weight=None, verbose=False, max_iter=-1, decision_function_shape='ovr', break_ties=False, random_state=None)
+        if params.method == 'LR':
+            model = LogisticRegression(C=1.0, penalty='l2', tol=0.0001, fit_intercept=True, intercept_scaling=1, class_weight=None, random_state=None, solver='lbfgs', max_iter=100, multi_class='auto', verbose=0, warm_start=False, n_jobs=None, l1_ratio=None)
+
+        if params.method in ['MTMK mix', 'MTMK L1', 'MTMK L2','MTSK','STMK','STSK']:
             model.train_phecode = train_phecode[k]
             model.test_phecode = test_phecode[k]
         
@@ -242,12 +257,16 @@ if __name__ == '__main__':
             for i in range(TASK_NUM):
                 train_x_image[i] = train_x_image[i][int(0.8 * TEXT_NUM):]
                 train_y_image[i] = train_y_image[i][int(0.8 * TEXT_NUM):]
-            model.fit(train_x_image, train_y_image)
+            if params.method not in ['SVM', 'LR']:
+                model.fit(train_x_image, train_y_image)
+            # model.fit(train_x_image, train_y_image)
         # train on both text and image
         else:
-            model.fit(train_x,train_y)
+            if params.method not in ['SVM', 'LR']:
+                model.fit(train_x,train_y)
+            # model.fit(train_x,train_y)
         
-        if params.savemodel:
+        if params.savemodel and params.method not in ['SVM', 'LR']:
             if not os.path.exists(params.savedir):
                 os.mkdir(params.savedir)
             
@@ -263,26 +282,43 @@ if __name__ == '__main__':
             x_train_k = train_x[i]
             y_train_k = train_y[i]
             
-            test_pred_k = torch.zeros_like(y_test_k, dtype=float)
-            train_pred_k = torch.zeros_like(y_train_k, dtype=float)
-            
-            test_pred_k = model.high_dim_predict_nightly(x_test_k,i)
-            train_pred_k = model.high_dim_predict_nightly(x_train_k,i)
-            
-            # for m in range(x_test_k.shape[0]):
-            #     test_pred_k[m] = model.high_dim_predict(x_test_k[m],i)
-            
-            # for m in range(x_train_k.shape[0]):
-            #     train_pred_k[m] = model.high_dim_predict(x_train_k[m],i)
+            if params.method not in ['SVM', 'LR']:
+
+                test_pred_k = torch.zeros_like(y_test_k, dtype=float)
+                train_pred_k = torch.zeros_like(y_train_k, dtype=float)
                 
-            test_pred_k = 1 / (1 + torch.exp(- test_pred_k))
-            train_pred_k = 1 / (1 + torch.exp(- train_pred_k))
+                test_pred_k = model.high_dim_predict_nightly(x_test_k,i)
+                train_pred_k = model.high_dim_predict_nightly(x_train_k,i)
+                
+                # for m in range(x_test_k.shape[0]):
+                #     test_pred_k[m] = model.high_dim_predict(x_test_k[m],i)
+                
+                # for m in range(x_train_k.shape[0]):
+                #     train_pred_k[m] = model.high_dim_predict(x_train_k[m],i)
+                    
+                test_pred_k = 1 / (1 + torch.exp(- test_pred_k))
+                train_pred_k = 1 / (1 + torch.exp(- train_pred_k))
+                
+                y_train_k = y_train_k.to('cpu').detach().numpy()
+                y_test_k = y_test_k.to('cpu').detach().numpy()
+                train_pred_k = train_pred_k.to('cpu').detach().numpy()
+                test_pred_k = test_pred_k.to('cpu').detach().numpy()
             
-            y_train_k = y_train_k.to('cpu').detach().numpy()
-            y_test_k = y_test_k.to('cpu').detach().numpy()
-            train_pred_k = train_pred_k.to('cpu').detach().numpy()
-            test_pred_k = test_pred_k.to('cpu').detach().numpy()
-            
+            else:
+                # 将x_test_k和x_train_k转换为numpy
+                y_train_k = y_train_k.to('cpu').detach().numpy()
+                y_test_k = y_test_k.to('cpu').detach().numpy()
+                x_test_k = x_test_k.to('cpu').detach().numpy()
+                x_train_k = x_train_k.to('cpu').detach().numpy()
+
+                model.fit(x_train_k, y_train_k)
+
+                test_pred_k = model.predict_proba(x_test_k)
+                train_pred_k = model.predict_proba(x_train_k)
+                test_pred_k = test_pred_k[:,1]
+                train_pred_k = train_pred_k[:,1]
+        
+
             train_total_auc = roc_auc_score(y_train_k, train_pred_k)
             test_total_auc = roc_auc_score(y_test_k, test_pred_k)
             train_text_auc = roc_auc_score(y_train_k[0:int(TEXT_NUM * 2 * 0.8)], train_pred_k[0:int(TEXT_NUM * 2 * 0.8)])

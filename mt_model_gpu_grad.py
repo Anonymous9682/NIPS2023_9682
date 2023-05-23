@@ -275,6 +275,7 @@ class SingleModel(nn.Module):
     def high_dim_predict(self, x_test, task):
         f_hat = 0.
         model = self.Models[task]
+        # 对kernels计算
         for m in range(model.alpha[0].shape[0]):    
             for i in range(model.alpha[0].shape[1]):
                 f_hat += model.alpha[0][m][i].item()* self.kernel_list[m](model.X_train[0][i].reshape(1,-1), x_test.reshape(1,-1)).squeeze()
@@ -301,9 +302,9 @@ class SingleModel(nn.Module):
         return torch.sigmoid(fhat).item()
 
     def save_model(self, path, path1):
-        # save alpha
+        # 存alpha数据
         torch.save(self.alpha, path)
-        # save dataset
+        # 存训练集合数据
         torch.save(self.X_train, path1)
 
     def load_model(self, path, path1):

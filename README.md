@@ -2,11 +2,11 @@
 
 ## Overview
 
- Official pytorch implementation of the paper:
+ Official pytorch implementation of the paper: CLIP as Multi-Task Multi-Kernel Learning
 
 <!-- ["*CLIP as Multi-Task Multi-Kernel Learning*" (2023)](https://openreview.net/forum?id=FAkiXRVxjX) [Yucong Lin](https://openreview.net/profile?id=~Yucong_Lin2), [Tianjun Ke](https://openreview.net/profile?id=~Tianjun_Ke1), [Xingpeng Xia](https://openreview.net/profile?id=~Xingpeng_Xia1), [Jiaheng Yin](https://openreview.net/profile?id=~Jiaheng_Yin1), [Jiaxing Xu](https://openreview.net/profile?id=~Jiaxing_Xu1), [Tianxi Cai](https://openreview.net/profile?id=~Tianxi_Cai1), [Junwei Lu](https://openreview.net/profile?id=~Junwei_Lu1) -->
 
-["*CLIP as Multi-Task Multi-Kernel Learning*" (2023)](https://openreview.net/forum?id=FAkiXRVxjX)
+<!-- ["*CLIP as Multi-Task Multi-Kernel Learning*" (2023)](https://openreview.net/forum?id=FAkiXRVxjX) -->
 
 ### Description
 

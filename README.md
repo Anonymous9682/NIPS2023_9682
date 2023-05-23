@@ -36,25 +36,25 @@ cd ./data
 
 ### Methods
 
-We implement MTMK and STMK model classes in `mt_model_gpu_grad.py`. MTSK and STSK can be derived from them, for example, we can simply choose only one kernel in our kernel list and it is exactly MTSK/STSK. Additionally, we use $\lambda_2,\lambda_3$ to control the norm of our model.
+We implement MTMK and STMK model classes in `mt_model_gpu_grad.py`. MTSK and STSK can be derived from them, for example, we can simply choose only one kernel in our kernel list and it is exactly MTSK/STSK. Additionally, we use $\lambda_2, \lambda_3$ to control the norm of our model.
 
 ### Training and Testing Procedure
 
-We simply select 7 labels from MedMNIST dataset and the model can be trained and tested by 5-fold cross validation as follows:
+We simply select 6 classes from MedMNIST dataset and the model can be trained and tested by 5-fold cross-validation as follows:
 
 e.g. `python MedMNIST.py --method="MTMK mix" --seed=53 --samples=100 --texts=0 --lmd2=0.05 --lmd3=0.05`
 
 Here is the description of all parameters:
 
 * --method: choose a model from *MTMK mix/ MTMK L1/ MTMK L2/ LR/ SVM/ STMK/ STSK*
-* --seed: the random seed used in selecting picture and cross validation. Default value is 53.
+* --seed: the random seed used in selecting images and cross-validation. The default value is 53.
 * --samples: the number of positive images in each task, i.e. if sample=100, then the number of positive and negative images are all 100, so there will be 200 images in one task.
 * --text: the number of positive text embeddings in each task.
 * --lmd2, --lmd3: parameters of our model.
 
-### Tuning parameters($\lambda_2,\lambda_3$) 
+### Tuning parameters($\lambda_2, \lambda_3$) 
 
-The parameters can be tuned with grid search, for example, if we want to tune ($\lambda_2,\lambda_3$)  on a grid of $[0.005,0.05]\times[0.005,0.05]$ with a step=0.005, the code is as follows:
+The parameters can be tuned with grid search, for example, if we want to tune ($\lambda_2, \lambda_3$)  on a grid of $[0.005, 0.05] \times [0.005, 0.05]$ with a step=0.005, the code is as follows:
 
 `python MedMNIST_parameter_tune.py --method="MTMK mix" --seed=53 --samples=100 --texts=50 --lmd2=0.005 --lmd3=0.005 --start=0.005 --end=0.05 --step=0.005`
 
